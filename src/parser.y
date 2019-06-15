@@ -576,7 +576,10 @@ Param:
   $$ = gen_param_regular(jv_string_value($2));
   jv_free($2);
 } |
-
+'$' Keyword {
+  $$ = gen_param_regular(jv_string_value($2));
+  jv_free($2);
+} |
 IDENT {
   $$ = gen_param(jv_string_value($1));
   jv_free($1);
@@ -685,6 +688,12 @@ Term '[' Exp ']' '?' {
 Term '[' Exp ']' %prec NONOPT {
   $$ = gen_index($1, $3);
 } |
+Term '.' '[' Exp ']' '?' {
+  $$ = gen_index_opt($1, $4);
+} |
+Term '.' '[' Exp ']' %prec NONOPT {
+  $$ = gen_index($1, $4);
+} |
 Term '[' ']' '?' {
   $$ = block_join($1, gen_op_simple(EACH_OPT));
 } |
@@ -734,12 +743,17 @@ FORMAT {
   else
     $$ = BLOCK(gen_subexp(gen_const(jv_object())), $2, gen_op_simple(POP));
 } |
-'$' LOC {
-  $$ = gen_const(JV_OBJECT(jv_string("file"), jv_copy(locations->fname),
-                           jv_string("line"), jv_number(locfile_get_line(locations, @$.start) + 1)));
-} |
 '$' IDENT {
   $$ = gen_location(@$, locations, gen_op_unbound(LOADV, jv_string_value($2)));
+  jv_free($2);
+} |
+'$' Keyword {
+  if (strcmp(jv_string_value($2), "__loc__") == 0) {
+    $$ = gen_const(JV_OBJECT(jv_string("file"), jv_copy(locations->fname),
+                             jv_string("line"), jv_number(locfile_get_line(locations, @$.start) + 1)));
+  } else {
+    $$ = gen_location(@$, locations, gen_op_unbound(LOADV, jv_string_value($2)));
+  }
   jv_free($2);
 } |
 IDENT {
@@ -939,7 +953,15 @@ IDENT ':' ExpD {
   $$ = gen_dictpair(gen_const($2),
                     gen_location(@$, locations, gen_op_unbound(LOADV, jv_string_value($2))));
   }
+| '$' Keyword {
+  $$ = gen_dictpair(gen_const($2),
+                    gen_location(@$, locations, gen_op_unbound(LOADV, jv_string_value($2))));
+  }
 | IDENT {
+  $$ = gen_dictpair(gen_const(jv_copy($1)),
+                    gen_index(gen_noop(), gen_const($1)));
+  }
+| Keyword {
   $$ = gen_dictpair(gen_const(jv_copy($1)),
                     gen_index(gen_noop(), gen_const($1)));
   }

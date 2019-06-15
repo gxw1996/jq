@@ -208,20 +208,11 @@ jq_util_input_state *jq_util_input_init(jq_util_msg_cb err_cb, void *err_cb_data
     err_cb = fprinter;
     err_cb_data = stderr;
   }
-  jq_util_input_state *new_state = jv_mem_alloc(sizeof(*new_state));
-  memset(new_state, 0, sizeof(*new_state));
+  jq_util_input_state *new_state = jv_mem_calloc(1, sizeof(*new_state));
   new_state->err_cb = err_cb;
   new_state->err_cb_data = err_cb_data;
-  new_state->parser = NULL;
-  new_state->current_input = NULL;
-  new_state->files = NULL;
-  new_state->nfiles = 0;
-  new_state->curr_file = 0;
   new_state->slurped = jv_invalid();
-  new_state->buf[0] = 0;
-  new_state->buf_valid_len = 0;
   new_state->current_filename = jv_invalid();
-  new_state->current_line = 0;
 
   return new_state;
 }
@@ -275,7 +266,7 @@ static int jq_util_input_read_more(jq_util_input_state *state) {
       // System-level input error on the stream. It will be closed (below).
       // TODO: report it. Can't use 'state->err_cb()' as it is hard-coded for
       //       'open' related problems.
-      fprintf(stderr,"Input error: %s\n", strerror(errno));
+      fprintf(stderr,"jq: error: %s\n", strerror(errno));
     }
     if (state->current_input) {
       if (state->current_input == stdin) {
